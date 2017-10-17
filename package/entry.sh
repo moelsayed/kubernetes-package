@@ -66,6 +66,29 @@ contexts:
   name: webhook
 EOF
 
+# generate Azure cloud provider config
+if echo ${@} | grep -q "cloud-provider=azure"; then
+  if [ "$1" == "kubelet" ] || [ "$1" == "kube-apiserver" ] || [ "$1" == "kube-controller-manager" ]; then
+    host_uuid=$(curl -s http://rancher-metadata/2015-12-19/self/host/uuid)
+    host_name=$(curl -s http://rancher-metadata/2015-12-19/self/host/hostname)
+    # hosts created using rancher-machine create their own security group.
+    host_security_group="${host_name}-firewall"
+    rancher_server=${CATTLE_URL%/v1}
+    curl -s -u $CATTLE_ACCESS_KEY:$CATTLE_SECRET_KEY $rancher_server/v2-beta/hosts?uuid=$host_uuid | jq .data[0].azureConfig |
+    jq ". |= .+ {\"tenantId\": \"${AZURE_TENANT_ID}\", \"securityGroupName\": \"${host_security_group}\"}" |
+    jq 'del(.size, .dns, .image, .dockerPort, .openPort, .noPublicIp, .usePrivateIp, .customData)' |
+    jq 'del(.privateIpAddress, .sshUser, .storageType, .subnetPrefix, .staticPublicIp, .availabilitySet)' |
+    sed \
+      -e "s|environment|cloud|g" \
+      -e "s|clientId|aadClientId|g" \
+      -e "s|clientSecret|aadClientSecret|g" \
+      -e "s|\"vnet\"|\"vnetName\"|g" \
+      -e "s|\"subnet\"|\"subnetName\"|g" \
+    > /etc/kubernetes/cloud-provider-config
+   fi
+fi
+
+
 if [ "$1" == "kubelet" ]; then
     for i in $(DOCKER_API_VERSION=1.22 ./docker info 2>&1  | grep -i 'docker root dir' | cut -f2 -d:) /var/lib/docker /run /var/run; do
         for m in $(tac /proc/mounts | awk '{print $2}' | grep ^${i}/); do
