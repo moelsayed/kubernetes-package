@@ -1,6 +1,11 @@
 FROM rancher/agent-base:v0.3.0
 
-RUN DEBIAN_FRONTEND=noninteractive apt-get update -y \
+RUN echo "deb [arch=amd64] https://packages.microsoft.com/repos/azure-cli/ wheezy main" > \
+    /etc/apt/sources.list.d/azure-cli.list \
+    && apt-key adv --keyserver packages.microsoft.com --recv-keys 417A0893 \
+    && DEBIAN_FRONTEND=noninteractive apt-get -yy -q \
+    install apt-transport-https \
+    && DEBIAN_FRONTEND=noninteractive apt-get update -y \
     && DEBIAN_FRONTEND=noninteractive apt-get -yy -q \
     install \
     iptables \
@@ -13,14 +18,15 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update -y \
     nfs-common \
     jq \
     unzip \
-    git \
+    git \ 
     wget \
     glusterfs-client \
-    ceph-fs-common \
+    ceph-fs-common \ 
     ceph-common \
-    conntrack \
+    conntrack \ 
     netcat-openbsd \
     cifs-utils \
+    azure-cli \
     && DEBIAN_FRONTEND=noninteractive apt-get autoremove -y \
     && DEBIAN_FRONTEND=noninteractive apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
