@@ -73,7 +73,7 @@ if echo ${@} | grep -q "cloud-provider=azure"; then
     
     az_resources_group=$(curl  -s -H Metadata:true "${AZURE_META_URL}/resourceGroupName?api-version=2017-08-01&format=text")
     az_subscription_id=$(curl -s -H Metadata:true "${AZURE_META_URL}/subscriptionId?api-version=2017-08-01&format=text")
-    az_location=$(curl  -s -H Metadata:true "${AZURE_META_URL}/az_location?api-version=2017-08-01&format=text")
+    az_location=$(curl  -s -H Metadata:true "${AZURE_META_URL}/location?api-version=2017-08-01&format=text")
     az_vm_name=$(curl -s -H Metadata:true "${AZURE_META_URL}/name?api-version=2017-08-01&format=text")
     
     # login to Azure 
@@ -87,17 +87,17 @@ if echo ${@} | grep -q "cloud-provider=azure"; then
 
     az logout
      
-    echo -e \
-      "aadClientId: ${AZURE_CLIENT_ID}\n" \
-      "aadClientSecret: ${AZURE_CLIENT_SECRET}\n"\
-      "cloud: ${az_cloud}\n"\
-      "location: ${az_location}\n"\
-      "resourceGroup: ${az_resources_group}\n"\
-      "subnetName: ${az_subnet_name}\n"\
-      "subscriptionId: ${az_subscription_id}\n"\
-      "vnetName: ${az_vnet_name}\n"\
-      "tenantId: ${AZURE_TENENT_ID}\n"\
-      "securityGroupName: ${az_security_group}\n"\
+    echo -e\
+      "aadClientId: ${AZURE_CLIENT_ID}
+    aadClientSecret: ${AZURE_CLIENT_SECRET}
+    cloud: ${az_cloud}
+    location: ${az_location}
+    resourceGroup: ${az_resources_group}
+    subnetName: ${az_subnet_name}
+    subscriptionId: ${az_subscription_id}
+    vnetName: ${az_vnet_name}
+    tenantId: ${AZURE_TENANT_ID}
+    securityGroupName: ${az_security_group}"
       > /etc/kubernetes/cloud-provider-config 
 
    fi
