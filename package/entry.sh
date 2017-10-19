@@ -69,22 +69,37 @@ EOF
 # generate Azure cloud provider config
 if echo ${@} | grep -q "cloud-provider=azure"; then
   if [ "$1" == "kubelet" ] || [ "$1" == "kube-apiserver" ] || [ "$1" == "kube-controller-manager" ]; then
-    host_uuid=$(curl -s http://rancher-metadata/2015-12-19/self/host/uuid)
-    host_name=$(curl -s http://rancher-metadata/2015-12-19/self/host/hostname)
-    # hosts created using rancher-machine create their own security group.
-    host_security_group="${host_name}-firewall"
-    rancher_server=${CATTLE_URL%/v1}
-    curl -s -u $CATTLE_ACCESS_KEY:$CATTLE_SECRET_KEY $rancher_server/v2-beta/hosts?uuid=$host_uuid | jq .data[0].azureConfig |
-    jq ". |= .+ {\"tenantId\": \"${AZURE_TENANT_ID}\", \"securityGroupName\": \"${host_security_group}\"}" |
-    jq 'del(.size, .dns, .image, .dockerPort, .openPort, .noPublicIp, .usePrivateIp, .customData)' |
-    jq 'del(.privateIpAddress, .sshUser, .storageType, .subnetPrefix, .staticPublicIp, .availabilitySet)' |
-    sed \
-      -e "s|environment|cloud|g" \
-      -e "s|clientId|aadClientId|g" \
-      -e "s|clientSecret|aadClientSecret|g" \
-      -e "s|\"vnet\"|\"vnetName\"|g" \
-      -e "s|\"subnet\"|\"subnetName\"|g" \
-    > /etc/kubernetes/cloud-provider-config
+    AZURE_META_URL="http://169.254.169.254/metadata/instance/compute"
+    
+    az_resources_group=$(curl  -s -H Metadata:true "${AZURE_META_URL}/resourceGroupName?api-version=2017-08-01&format=text")
+    az_subscription_id=$(curl -s -H Metadata:true "${AZURE_META_URL}/subscriptionId?api-version=2017-08-01&format=text")
+    az_location=$(curl  -s -H Metadata:true "${AZURE_META_URL}/az_location?api-version=2017-08-01&format=text")
+    az_vm_name=$(curl -s -H Metadata:true "${AZURE_META_URL}/name?api-version=2017-08-01&format=text")
+    
+    # login to Azure 
+    az login --service-principal -u ${AZURE_CLIENT_ID} -p ${AZURE_CLIENT_SECRET} --tenent ${AZURE_TENENT_ID}
+
+    az_cloud=$(az account show| jq -r .environmentName)
+    az_vm_nic=$(az vm nic list -g ${az_resources_group} --vm-name ${az_vm_name} | jq -r .[0].id | cut -d "/" -f 9)
+    az_subnet_name=$(az vm nic show -g ${az_resources_group} --vm-name ${az_vm_name} --nic ${az_vm_nic}| jq -r .ipConfigurations[0].subnet.id| cut -d"/" -f 11)
+    az_vnet_name=$(az vm nic show -g ${az_resources_group} --vm-name ${az_vm_name} --nic ${az_vm_nic}| jq -r .ipConfigurations[0].subnet.id| cut -d"/" -f 9)
+    az_security_group=$(az vm nic show -g ${az_resources_group} --vm-name ${az_vm_name} --nic ${az_vm_nic}| jq -r .networkSecurityGroup.id| cut -d"/" -f 9)
+
+    az logout
+     
+    echo -e \
+      "aadClientId: ${AZURE_CLIENT_I}D\n" \
+      "aadClientSecret: ${AZURE_CLIENT_SECRET}\n" \
+      "cloud: ${az_cloud}\n" \
+      "location: ${az_location}\n" \
+      "resourceGroup: ${az_resources_group}\n" \
+      "subnetName: ${az_subnet_name}\n" \
+      "subscriptionId: ${az_subscription_id}\n" \
+      "vnetName: ${az_vnet_name}\n" \
+      "tenantId: ${AZURE_TENENT_ID}\n" \
+      "securityGroupName: ${az_security_group}\n" \
+      > /etc/kubernetes/cloud-provider-config 
+
    fi
 fi
 
