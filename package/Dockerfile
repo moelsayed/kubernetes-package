@@ -1,11 +1,12 @@
 FROM rancher/agent-base:v0.3.0
 
-RUN echo "deb [arch=amd64] https://packages.microsoft.com/repos/azure-cli/ wheezy main" > \
+RUN DEBIAN_FRONTEND=noninteractive apt-get update -y \
+     && DEBIAN_FRONTEND=noninteractive apt-get -yy -q \
+    install apt-transport-https \
+    && echo "deb [arch=amd64] https://packages.microsoft.com/repos/azure-cli/ wheezy main" > \
     /etc/apt/sources.list.d/azure-cli.list \
     && apt-key adv --keyserver packages.microsoft.com --recv-keys 417A0893 \
-    && DEBIAN_FRONTEND=noninteractive apt-get -yy -q \
-    install apt-transport-https \
-    && DEBIAN_FRONTEND=noninteractive apt-get update -y \
+   && DEBIAN_FRONTEND=noninteractive apt-get update -y \
     && DEBIAN_FRONTEND=noninteractive apt-get -yy -q \
     install \
     iptables \
