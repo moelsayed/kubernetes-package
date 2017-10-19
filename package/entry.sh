@@ -77,7 +77,7 @@ if echo ${@} | grep -q "cloud-provider=azure"; then
     az_vm_name=$(curl -s -H Metadata:true "${AZURE_META_URL}/name?api-version=2017-08-01&format=text")
     
     # login to Azure 
-    az login --service-principal -u ${AZURE_CLIENT_ID} -p ${AZURE_CLIENT_SECRET} --tenent ${AZURE_TENENT_ID}
+    az login --service-principal -u ${AZURE_CLIENT_ID} -p ${AZURE_CLIENT_SECRET} --tenant ${AZURE_TENANT_ID}
 
     az_cloud=$(az account show| jq -r .environmentName)
     az_vm_nic=$(az vm nic list -g ${az_resources_group} --vm-name ${az_vm_name} | jq -r .[0].id | cut -d "/" -f 9)
