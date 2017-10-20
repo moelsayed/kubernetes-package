@@ -69,38 +69,9 @@ EOF
 # generate Azure cloud provider config
 if echo ${@} | grep -q "cloud-provider=azure"; then
   if [ "$1" == "kubelet" ] || [ "$1" == "kube-apiserver" ] || [ "$1" == "kube-controller-manager" ]; then
-    AZURE_META_URL="http://169.254.169.254/metadata/instance/compute"
-    
-    az_resources_group=$(curl  -s -H Metadata:true "${AZURE_META_URL}/resourceGroupName?api-version=2017-08-01&format=text")
-    az_subscription_id=$(curl -s -H Metadata:true "${AZURE_META_URL}/subscriptionId?api-version=2017-08-01&format=text")
-    az_location=$(curl  -s -H Metadata:true "${AZURE_META_URL}/location?api-version=2017-08-01&format=text")
-    az_vm_name=$(curl -s -H Metadata:true "${AZURE_META_URL}/name?api-version=2017-08-01&format=text")
-    
-    # login to Azure 
-    az login --service-principal -u ${AZURE_CLIENT_ID} -p ${AZURE_CLIENT_SECRET} --tenant ${AZURE_TENANT_ID}
-
-    az_cloud=$(az account show| jq -r .environmentName)
-    az_vm_nic=$(az vm nic list -g ${az_resources_group} --vm-name ${az_vm_name} | jq -r .[0].id | cut -d "/" -f 9)
-    az_subnet_name=$(az vm nic show -g ${az_resources_group} --vm-name ${az_vm_name} --nic ${az_vm_nic}| jq -r .ipConfigurations[0].subnet.id| cut -d"/" -f 11)
-    az_vnet_name=$(az vm nic show -g ${az_resources_group} --vm-name ${az_vm_name} --nic ${az_vm_nic}| jq -r .ipConfigurations[0].subnet.id| cut -d"/" -f 9)
-    az_security_group=$(az vm nic show -g ${az_resources_group} --vm-name ${az_vm_name} --nic ${az_vm_nic}| jq -r .networkSecurityGroup.id| cut -d"/" -f 9)
-
-    az logout
-     
-    echo -e\
-      "aadClientId: ${AZURE_CLIENT_ID}
-    aadClientSecret: ${AZURE_CLIENT_SECRET}
-    cloud: ${az_cloud}
-    location: ${az_location}
-    resourceGroup: ${az_resources_group}
-    subnetName: ${az_subnet_name}
-    subscriptionId: ${az_subscription_id}
-    vnetName: ${az_vnet_name}
-    tenantId: ${AZURE_TENANT_ID}
-    securityGroupName: ${az_security_group}"
-      > /etc/kubernetes/cloud-provider-config 
-
-   fi
+    source utils.sh
+    get_azure_config  > /etc/kubernetes/cloud-provider-config 
+  fi
 fi
 
 
@@ -125,6 +96,11 @@ FQDN=$(hostname --fqdn || hostname)
 
 if [ "$1" == "kubelet" ]; then
     CGROUPDRIVER=$(docker info | grep -i 'cgroup driver' | awk '{print $3}')
+    # Azure API uses the hostname not the FQDN, if FQDN is used,
+    # kubelet wouldn't be able to get node information from the cloud provider.
+    if [ "${CLOUD_PROVIDER}" == "azure" ]; then
+      FQDN=$(hostname)
+    fi
     exec "$@" --cgroup-driver=$CGROUPDRIVER --hostname-override ${FQDN}
 fi
 
